@@ -6,6 +6,7 @@
 <title>Licfap music base</title>
 
 <style>
+
 :root{
 --bg1:#0f2027;
 --bg2:#203a43;
@@ -25,13 +26,16 @@ text-align:center;
 padding:28px;
 font-size:34px;
 font-weight:bold;
-letter-spacing:2px;
 }
 
-.subtitle{text-align:center;opacity:.8;margin-bottom:20px}
+.subtitle{
+text-align:center;
+opacity:.8;
+margin-bottom:20px;
+}
 
 .studio{
-max-width:1500px;
+max-width:1400px;
 margin:auto;
 padding:20px;
 display:grid;
@@ -47,7 +51,7 @@ backdrop-filter:blur(10px);
 box-shadow:0 10px 30px rgba(0,0,0,.4);
 }
 
-/* piano plus petit */
+/* piano */
 
 .piano-scroll{overflow-x:auto}
 
@@ -62,14 +66,8 @@ width:30px;
 height:90px;
 background:white;
 border:1px solid #111;
-position:relative;
 cursor:pointer;
-transition:.1s;
-}
-
-.key.active{
-background:#00e0ff;
-box-shadow:0 0 20px #00e0ff;
+position:relative;
 }
 
 .key span{
@@ -81,7 +79,11 @@ font-size:9px;
 color:black;
 }
 
-/* drum machine */
+.key.active{
+background:#00e0ff;
+}
+
+/* drum */
 
 .drum-grid{
 display:grid;
@@ -91,25 +93,29 @@ margin-top:10px;
 }
 
 .step{
-height:28px;
+height:26px;
 background:#444;
 border-radius:4px;
 cursor:pointer;
 }
 
-.step.active{background:#00e0ff}
-
-/* mixer */
-
-.mixer{
-display:flex;
-flex-direction:column;
-gap:10px;
+.step.active{
+background:#00e0ff;
 }
 
-input[type=range]{width:100%}
+/* misc */
 
-/* visualizer */
+button{
+padding:8px 14px;
+border:none;
+border-radius:8px;
+background:var(--accent);
+font-weight:bold;
+cursor:pointer;
+margin:4px;
+}
+
+select{padding:6px}
 
 canvas{
 width:100%;
@@ -124,19 +130,12 @@ border-radius:10px;
 margin-top:10px;
 }
 
-button,select{
-padding:8px 14px;
-border:none;
-border-radius:8px;
-background:var(--accent);
-font-weight:bold;
-cursor:pointer;
-margin:4px;
+footer{
+text-align:center;
+padding:20px;
+opacity:.7;
 }
 
-audio{width:100%;margin-top:10px}
-
-footer{text-align:center;padding:20px;opacity:.7}
 </style>
 </head>
 
@@ -149,7 +148,8 @@ footer{text-align:center;padding:20px;opacity:.7}
 
 <!-- piano -->
 <div class="panel">
-<h2>🎹 Piano 3 octaves</h2>
+
+<h2>🎹 Piano</h2>
 
 <select id="instrumentSelect">
 <option value="sine">Piano</option>
@@ -161,12 +161,14 @@ footer{text-align:center;padding:20px;opacity:.7}
 <div class="piano" id="piano"></div>
 </div>
 
-<p>Clavier PC : A S D F G H J K L ; Q W E R T Y U I</p>
+<p>Clavier : A S D F G H J K L ; Q W E R T Y U I</p>
 
 </div>
 
-<!-- drum machine -->
+<!-- drum -->
+
 <div class="panel">
+
 <h2>🥁 Drum machine</h2>
 
 <button onclick="toggleSequencer()">Play / Stop</button>
@@ -175,30 +177,16 @@ footer{text-align:center;padding:20px;opacity:.7}
 
 </div>
 
-<!-- mixer -->
-<div class="panel">
-<h2>🎛 Mixeur</h2>
-
-<div class="mixer">
-
-<label>Piano volume</label>
-<input type="range" id="pianoVol" min="0" max="1" step="0.01" value="0.4">
-
-<label>Drums volume</label>
-<input type="range" id="drumVol" min="0" max="1" step="0.01" value="0.8">
-
-</div>
-
-</div>
-
 <!-- recording -->
+
 <div class="panel">
-<h2>🎙 Enregistrement audio</h2>
+
+<h2>🎙 Enregistrement</h2>
 
 <button onclick="startRecording()">Start</button>
 <button onclick="stopRecording()">Stop</button>
 
-<h3>🎤 Enregistrement vocal</h3>
+<h3>🎤 Micro</h3>
 
 <button onclick="startMic()">Activer micro</button>
 
@@ -209,7 +197,9 @@ footer{text-align:center;padding:20px;opacity:.7}
 </div>
 
 <!-- webcam -->
+
 <div class="panel">
+
 <h2>📷 Webcam</h2>
 
 <button onclick="startCamera()">Activer caméra</button>
@@ -219,6 +209,8 @@ footer{text-align:center;padding:20px;opacity:.7}
 
 <canvas id="photoCanvas"></canvas>
 
+<div id="photoDownload"></div>
+
 </div>
 
 </div>
@@ -227,10 +219,10 @@ footer{text-align:center;padding:20px;opacity:.7}
 
 <script>
 
-const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+/* AUDIO */
 
+const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
 const analyser=audioCtx.createAnalyser();
-analyser.fftSize=256;
 
 const mediaDest=audioCtx.createMediaStreamDestination();
 
@@ -238,12 +230,12 @@ analyser.connect(audioCtx.destination);
 analyser.connect(mediaDest);
 
 let recorder=new MediaRecorder(mediaDest.stream);
-
 let chunks=[];
 
-/* piano */
+/* PIANO */
 
 const piano=document.getElementById("piano");
+
 const notes=[];
 
 for(let i=0;i<36;i++){
@@ -252,21 +244,24 @@ notes.push(130.81*Math.pow(2,i/12));
 
 notes.forEach((freq,i)=>{
 
-let k=document.createElement("div");
-k.className="key";
-k.dataset.freq=freq;
+let key=document.createElement("div");
+key.className="key";
+key.dataset.freq=freq;
 
 let label=document.createElement("span");
 label.innerText=i+1;
 
-k.appendChild(label);
-piano.appendChild(k);
+key.appendChild(label);
+
+key.onclick=()=>play(freq,key);
+
+piano.appendChild(key);
 
 });
 
 let instrument="sine";
 
-document.getElementById("instrumentSelect").onchange=e=>instrument=e.target.value;
+instrumentSelect.onchange=e=>instrument=e.target.value;
 
 function play(freq,keyEl){
 
@@ -276,7 +271,7 @@ let gain=audioCtx.createGain();
 osc.type=instrument;
 osc.frequency.value=freq;
 
-gain.gain.value=document.getElementById("pianoVol").value;
+gain.gain.value=0.4;
 
 osc.connect(gain);
 gain.connect(analyser);
@@ -285,15 +280,12 @@ osc.start();
 osc.stop(audioCtx.currentTime+.6);
 
 keyEl.classList.add("active");
+
 setTimeout(()=>keyEl.classList.remove("active"),150);
 
 }
 
-document.querySelectorAll('.key').forEach(k=>{
-k.onclick=()=>play(parseFloat(k.dataset.freq),k);
-});
-
-/* keyboard */
+/* clavier */
 
 const map="asdfghjkl;qwertyui";
 
@@ -303,14 +295,15 @@ let i=map.indexOf(e.key);
 
 if(i>-1 && notes[i]){
 
-let key=document.querySelectorAll('.key')[i];
+let key=document.querySelectorAll(".key")[i];
+
 play(notes[i],key);
 
 }
 
 });
 
-/* drum machine */
+/* DRUM */
 
 const drumGrid=document.getElementById("drumGrid");
 
@@ -319,13 +312,13 @@ let steps=[];
 for(let i=0;i<16;i++){
 
 let s=document.createElement("div");
+
 s.className="step";
 
-s.onclick=()=>{
-s.classList.toggle("active");
-};
+s.onclick=()=>s.classList.toggle("active");
 
 steps.push(s);
+
 drumGrid.appendChild(s);
 
 }
@@ -339,17 +332,14 @@ let osc=audioCtx.createOscillator();
 let gain=audioCtx.createGain();
 
 osc.frequency.setValueAtTime(150,audioCtx.currentTime);
-osc.frequency.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+.5);
 
-gain.gain.setValueAtTime(document.getElementById("drumVol").value,audioCtx.currentTime);
-
-gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+.5);
+gain.gain.setValueAtTime(.8,audioCtx.currentTime);
 
 osc.connect(gain);
 gain.connect(analyser);
 
 osc.start();
-osc.stop(audioCtx.currentTime+.5);
+osc.stop(audioCtx.currentTime+.3);
 
 }
 
@@ -359,9 +349,7 @@ if(!playing)return;
 
 let step=steps[stepIndex];
 
-if(step.classList.contains("active")){
-kick();
-}
+if(step.classList.contains("active"))kick();
 
 stepIndex=(stepIndex+1)%16;
 
@@ -373,13 +361,11 @@ function toggleSequencer(){
 
 playing=!playing;
 
-if(playing){
-sequencer();
-}
+if(playing)sequencer();
 
 }
 
-/* enregistrement musique */
+/* ENREGISTREMENT */
 
 recorder.ondataavailable=e=>chunks.push(e.data);
 
@@ -389,10 +375,10 @@ let blob=new Blob(chunks,{type:'audio/webm'});
 let url=URL.createObjectURL(blob);
 
 player.innerHTML=`
-<audio controls loop src="${url}"></audio>
+<audio controls src="${url}"></audio>
 <br>
-<a href="${url}" download="licfap-track.wav">
-<button>Télécharger</button>
+<a href="${url}" download="licfap-track.webm">
+<button>Télécharger l'enregistrement</button>
 </a>
 `;
 
@@ -401,14 +387,20 @@ chunks=[];
 };
 
 function startRecording(){
-if(recorder.state!=="recording")recorder.start();
+
+if(recorder.state!=="recording")
+recorder.start();
+
 }
 
 function stopRecording(){
-if(recorder.state==="recording")recorder.stop();
+
+if(recorder.state==="recording")
+recorder.stop();
+
 }
 
-/* micro */
+/* MICRO */
 
 async function startMic(){
 
@@ -421,18 +413,28 @@ mic.connect(mediaDest);
 
 }
 
-/* webcam */
+/* CAMERA BASSE QUALITE */
 
 const video=document.getElementById("video");
 const photoCanvas=document.getElementById("photoCanvas");
 
 async function startCamera(){
 
-let stream=await navigator.mediaDevices.getUserMedia({video:true});
+let stream=await navigator.mediaDevices.getUserMedia({
+
+video:{
+width:320,
+height:240,
+frameRate:10
+}
+
+});
 
 video.srcObject=stream;
 
 }
+
+/* PHOTO */
 
 function takePhoto(){
 
@@ -443,9 +445,22 @@ let ctx=photoCanvas.getContext("2d");
 
 ctx.drawImage(video,0,0);
 
+let link=document.createElement("a");
+
+link.download="photo-licfap.png";
+
+link.href=photoCanvas.toDataURL("image/png");
+
+link.textContent="Télécharger la photo";
+
+let container=document.getElementById("photoDownload");
+
+container.innerHTML="";
+container.appendChild(link);
+
 }
 
-/* visualizer */
+/* VISUALIZER */
 
 const canvas=document.getElementById("visualizer");
 const ctx=canvas.getContext("2d");
@@ -468,6 +483,7 @@ for(let i=0;i<data.length;i++){
 let h=data[i]/2;
 
 ctx.fillStyle="#00e0ff";
+
 ctx.fillRect(i*w,canvas.height-h,w-1,h);
 
 }
